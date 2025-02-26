@@ -2,8 +2,8 @@ import logging
 logger = logging.getLogger('base')
 
 def create_model(opt):
-    model = opt['model']
-    frame_num = opt['gop']
+    model = opt['model'] #MIMO-VRN-h
+    frame_num = opt['gop'] #1 (frame_num)
     from .IBSN import Model_VSN as M
 
     m = M(opt)

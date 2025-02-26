@@ -3,6 +3,7 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 
 import models.networks as networks
@@ -14,6 +15,7 @@ from .modules.common import DWT,IWT
 from utils.jpegtest import JpegTest
 from utils.JPEG import DiffJPEG
 import utils.util as util
+from torch.utils.checkpoint import checkpoint
 
 
 import numpy as np
@@ -25,11 +27,12 @@ logger = logging.getLogger('base')
 dwt=DWT()
 iwt=IWT()
 
-from diffusers import StableDiffusionInpaintPipeline
-from diffusers import StableDiffusionControlNetInpaintPipeline, ControlNetModel, DDIMScheduler
-from diffusers import StableDiffusionXLInpaintPipeline
-from diffusers.utils import load_image
-from diffusers import RePaintPipeline, RePaintScheduler
+#from diffusers import StableDiffusionInpaintPipeline
+#from diffusers import StableDiffusionControlNetInpaintPipeline, ControlNetModel, DDIMScheduler
+#from diffusers import StableDiffusionXLInpaintPipeline
+#from diffusers.utils import load_image
+#from diffusers import RePaintPipeline, RePaintScheduler
+
 
 class Model_VSN(BaseModel):
     def __init__(self, opt):
@@ -46,15 +49,15 @@ class Model_VSN(BaseModel):
         self.opt = opt
         self.train_opt = train_opt
         self.test_opt = test_opt
-        self.opt_net = opt['network_G']
-        self.center = self.gop // 2
+        self.opt_net = opt['network_G'] #DB_NET
+        self.center = self.gop // 2 #Video가 아니니깐 0
         self.num_image = opt['num_image']
-        self.mode = opt["mode"]
+        self.mode = opt["mode"] #bit
         self.idxx = 0
 
         self.netG = networks.define_G_v2(opt).to(self.device)
         if opt['dist']:
-            self.netG = DistributedDataParallel(self.netG, device_ids=[torch.cuda.current_device()])
+            self.netG = DistributedDataParallel(self.netG, device_ids=[torch.cuda.current_device()], find_unused_parameters=True)
         else:
             self.netG = DataParallel(self.netG)
         # print network
@@ -160,7 +163,7 @@ class Model_VSN(BaseModel):
     def feed_data(self, data):
         self.ref_L = data['LQ'].to(self.device)  
         self.real_H = data['GT'].to(self.device)
-        self.mes = data['MES']
+        self.mes = "".join(str(random.randint(0,1)) for _ in range(64))
 
     def init_hidden_state(self, z):
         b, c, h, w = z.shape
@@ -197,8 +200,12 @@ class Model_VSN(BaseModel):
         add_noise = self.opt['addnoise']
         add_jpeg = self.opt['addjpeg']
         add_possion = self.opt['addpossion']
+        add_upsampling = self.opt['add_upsampling']
+        add_downsampling = self.opt['add_downsampling']
         add_sdinpaint = self.opt['sdinpaint']
         degrade_shuffle = self.opt['degrade_shuffle']
+        num_noise = self.opt['num_noise']
+    
 
         self.host = self.real_H[:, center - intval:center + intval + 1]
         self.secret = self.ref_L[:, :, center - intval:center + intval + 1]
@@ -213,7 +220,7 @@ class Model_VSN(BaseModel):
 
         if degrade_shuffle:
             import random
-            choice = random.randint(0, 2)
+            choice = random.randint(0, num_noise - 1)
             
             if choice == 0:
                 NL = float((np.random.randint(1, 16))/255)
@@ -236,6 +243,44 @@ class Model_VSN(BaseModel):
                     noisy_img_tensor = y_forw + (noisy_gray_tensor - img_gray_tensor)
 
                 y_forw = torch.clamp(noisy_img_tensor, 0, 1)
+
+            elif choice == 3:
+                b, _, h, w = y_forw.shape
+                downsize_scales = []
+                for _ in range(b):
+                    downsize = random.randint(128, 512)
+                    downsize_scales.append((downsize, downsize))
+
+                resized_tensors = []
+                for idx, downsize_scale in enumerate(downsize_scales):
+                    resized_tensor = F.interpolate(y_forw[idx].unsqueeze(0), size=downsize_scale, mode='bicubic')
+                    resized_tensors.append(resized_tensor)
+
+                restored_tensors = []
+                for resized_tensor in resized_tensors:
+                    restored_tensor = F.interpolate(resized_tensor, size=(h, w), mode='bicubic')
+                    restored_tensors.append(restored_tensor)
+                
+                y_forw = torch.cat(restored_tensors, dim=0)
+
+            elif choice == 4:
+                b, _, h, w = y_forw.shape
+                upsize_scales = []
+                for _ in range(b):
+                    upsize = random.randint(512, 1024)
+                    upsize_scales.append((upsize, upsize))
+
+                resized_tensors = []
+                for idx, upsize_scale in enumerate(upsize_scales):
+                    resized_tensor = F.interpolate(y_forw[idx].unsqueeze(0), size=upsize_scale, mode='bicubic')
+                    resized_tensors.append(resized_tensor)
+
+                restored_tensors = []
+                for resized_tensor in resized_tensors:
+                    restored_tensor = F.interpolate(resized_tensor, size=(h, w), mode='bicubic')
+                    restored_tensors.append(restored_tensor)
+                
+                y_forw = torch.cat(restored_tensors, dim=0)
 
         else:
 
@@ -280,7 +325,7 @@ class Model_VSN(BaseModel):
 
             loss = l_forw_fit*2 + l_back_rec + l_center_x*4
 
-            loss.backward()
+            loss.backward(retain_graph=True)
 
             if self.train_opt['lambda_center'] != 0:
                 self.log_dict['l_center_x'] = l_center_x.item()
@@ -309,7 +354,7 @@ class Model_VSN(BaseModel):
 
             loss = l_msg * lambda_msg + l_forw_fit
 
-            loss.backward()
+            loss.backward(retain_graph=True)
 
             # set log
             self.log_dict['l_forw_fit'] = l_forw_fit.item()
@@ -622,7 +667,7 @@ class Model_VSN(BaseModel):
         self.netG.train()
 
 
-    def image_hiding(self, ):
+    def image_hiding(self, message):
         self.netG.eval()
         with torch.no_grad():
             b, t, c, h, w = self.real_H.shape
@@ -634,8 +679,8 @@ class Model_VSN(BaseModel):
             self.host = self.real_H[:, center - intval+id:center + intval + 1+id]
             self.secret = self.ref_L[:, :, center - intval+id:center + intval + 1+id]
             self.secret = [dwt(self.secret[:,i].reshape(b, -1, h, w)) for i in range(n)]
-
-            message = torch.Tensor(self.mes).to(self.device)
+            
+            message = torch.Tensor(message).to(self.device)
 
             self.output, container = self.netG(x=dwt(self.host.reshape(b, -1, h, w)), x_h=self.secret, message=message)
             y_forw = container

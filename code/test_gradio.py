@@ -81,7 +81,7 @@ def image_editing(image_numpy, mask_image, prompt):
     
     h, w = mask_image.size
     
-    image_inpaint = pipe(prompt=prompt, image=image_init, mask_image=mask_image, height=w, width=h).images[0]
+    image_inpaint = pipe(prompt=prompt, image=image_init, mask_image=mask_image, height=w, width=h, num_inference_steps=10).images[0]
     image_inpaint = np.array(image_inpaint) / 255.
     image = np.array(image_init) / 255.
     mask_image = np.array(mask_image)

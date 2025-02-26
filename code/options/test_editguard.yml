@@ -15,7 +15,8 @@ noisesigma: 1
 addjpeg: False
 jpegfactor: 70
 addpossion: False
-sdinpaint: True
+REFace: True
+sdinpaint: False
 controlnetinpaint: False
 sdxl: False
 repaint: False
@@ -38,8 +39,8 @@ datasets:
     name: AGE-Set
     mode: td
 
-    data_path: ../dataset/valAGE-Set
-    txt_path:  ../dataset/sep_testlist.txt
+    data_path: /home/aikusrv02/editguard/EditGuard/dataset/DeepFakeDataset/Image-Set
+    txt_path:  /home/aikusrv02/editguard/EditGuard/dataset/DeepFakeDataset/testlist.txt
 
     N_frames: 1
     padding: 'new_info'

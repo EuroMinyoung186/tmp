@@ -17,6 +17,7 @@ import numbers
 from einops import rearrange
 from models.bitnetwork.Encoder_U import DW_Encoder
 from models.bitnetwork.Decoder_U import DW_Decoder
+from torch.utils.checkpoint import checkpoint
 
 
 ## Layer Norm
@@ -349,14 +350,18 @@ class InvNN(nn.Module):
         # 		out = x
         jacobian = 0
 
+        def getopresult(module, x, x_h, rev):
+            return module.forward(x, x_h, rev)
         if not rev:
             for op in self.operations:
-                x, x_h = op.forward(x, x_h, rev)
+                x, x_h = checkpoint(getopresult, op, x, x_h, rev)
+                #x, x_h = op.forward(x, x_h, rev)
                 if cal_jacobian:
                     jacobian += op.jacobian(x, rev)
         else:
             for op in reversed(self.operations):
-                x, x_h = op.forward(x, x_h, rev)
+                x, x_h = checkpoint(getopresult, op, x, x_h, rev)
+                #x, x_h = op.forward(x, x_h, rev)
                 if cal_jacobian:
                     jacobian += op.jacobian(x, rev)
 
@@ -556,8 +561,11 @@ class VSN(nn.Module):
     def forward(self, x, x_h=None, message=None, rev=False, hs=[], direction='f'):
         if not rev:
             if self.mode == "image":
+                #def getbitencoder_result(out_y, message):
+                #    return self.bitencoder(out_y, message)    
                 out_y, out_y_h = self.irn(x, x_h, rev)
                 out_y = iwt(out_y)
+                #encoded_image = checkpoint(getbitencoder_result, out_y, message)
                 encoded_image = self.bitencoder(out_y, message)          
                 return out_y, encoded_image
             
@@ -568,8 +576,9 @@ class VSN(nn.Module):
 
         else:
             if self.mode == "image":
+                #recmessage = checkpoint(self.bitencoder, x)
+                
                 recmessage = self.bitdecoder(x)
-
                 x = dwt(x)
                 out_z = self.pm(x).unsqueeze(1)
                 out_z_new = out_z.view(-1, self.num_image, self.channel_in, x.shape[-2], x.shape[-1])

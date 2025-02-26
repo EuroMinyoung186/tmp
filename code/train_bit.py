@@ -36,7 +36,7 @@ def cal_pnsr(sr_img, gt_img):
 def main():
     # options
     parser = argparse.ArgumentParser()
-    parser.add_argument('-opt', type=str, help='Path to option YMAL file.')  # config 文件
+    parser.add_argument('-opt', type=str, help='Path to option YMAL file.', default='/home/aikusrv02/editguard/EditGuardChange/code/options/train_editguard_bit.yml')  # config 文件
     parser.add_argument('--launcher', choices=['none', 'pytorch'], default='none',
                         help='job launcher')
     parser.add_argument('--local_rank', type=int, default=0)

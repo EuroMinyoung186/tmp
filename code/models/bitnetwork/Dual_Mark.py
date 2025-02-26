@@ -71,7 +71,7 @@ class Network:
 
 			d_loss = self.criterion_MSE(d_label_cover - torch.mean(d_label_encoded), self.label_cover * torch.ones_like(d_label_cover)) +\
 			         self.criterion_MSE(d_label_encoded - torch.mean(d_label_cover), self.label_encoded * torch.ones_like(d_label_encoded))
-			d_loss.backward()
+			d_loss.backward(retain_graph=True)
 
 			self.opt_discriminator.step()
 
@@ -103,7 +103,7 @@ class Network:
 			g_loss = self.discriminator_weight * g_loss_on_discriminator + self.encoder_weight * g_loss_on_encoder_MSE +\
 					 self.decoder_weight_C * g_loss_on_decoder_C + self.decoder_weight_R * g_loss_on_decoder_R + self.decoder_weight_F * g_loss_on_decoder_F
 
-			g_loss.backward()
+			g_loss.backward(retain_graph=True)
 			self.opt_encoder_decoder.step()
 
 			# psnr

@@ -1,0 +1,119 @@
+24-09-22 17:38:08.102 - INFO:   name: train_editguard
+  use_tb_logger: True
+  model: MIMO-VRN-h
+  distortion: sr
+  scale: 4
+  gpu_ids: [0, 1, 2, 3]
+  gop: 1
+  num_image: 1
+  addnoise: True
+  noisesigma: 10
+  add_downsampling: True
+  downsample_size: 256
+  add_upsampling: True
+  upsample_size: 1024
+  addjpeg: True
+  addSampling: True
+  jpegfactor: 90
+  addpossion: True
+  sdinpaint: False
+  controlnetinpaint: False
+  sdxl: False
+  repaint: False
+  num_noise: 5
+  hide: True
+  bithide: False
+  degrade_shuffle: True
+  prompt: True
+  prompt_len: 5
+  message_length: 64
+  losstype: mse
+  mode: image
+  datasets:[
+    train:[
+      name: CoCo
+      mode: train
+      interval_list: [1]
+      random_reverse: False
+      border_mode: False
+      data_path: /home/aikusrv02/editguard/EditGuard/dataset/train2017
+      txt_path: /home/aikusrv02/editguard/EditGuardChange/dataset/train2017.txt
+      dataroot_LQ: /home/aikusrv02/vimeo90k/vimeo90k_train_LR7frames.lmdb
+      cache_keys: Vimeo90K_train_keys.pkl
+      num_image: 1
+      N_frames: 1
+      use_shuffle: True
+      n_workers: 8
+      batch_size: 4
+      GT_size: 400
+      LQ_size: 36
+      use_flip: True
+      use_rot: True
+      color: RGB
+      phase: train
+      scale: 4
+      data_type: lmdb
+    ]
+    val:[
+      num_image: 1
+      name: CoCo
+      mode: test
+      data_path: /home/aikusrv02/editguard/EditGuardChange/dataset/valAGE-Set
+      txt_path: /home/aikusrv02/editguard/EditGuardChange/dataset/sep_vallist.txt
+      N_frames: 1
+      padding: new_info
+      pred_interval: -1
+      phase: val
+      scale: 4
+      data_type: img
+    ]
+  ]
+  network_G:[
+    which_model_G:[
+      subnet_type: DBNet
+    ]
+    in_nc: 12
+    out_nc: 12
+    block_num: [6, 6]
+    scale: 4
+    init: xavier_group
+    block_num_rbm: 8
+    block_num_trans: 4
+  ]
+  path:[
+    pretrain_model_G: None
+    models: /home/aikusrv02/editguard/EditGuardChange/experiments/train_editguard/models
+    strict_load: False
+    resume_state: None
+    root: /home/aikusrv02/editguard/EditGuardChange
+    experiments_root: /home/aikusrv02/editguard/EditGuardChange/experiments/train_editguard
+    training_state: /home/aikusrv02/editguard/EditGuardChange/experiments/train_editguard/training_state
+    log: /home/aikusrv02/editguard/EditGuardChange/experiments/train_editguard
+    val_images: /home/aikusrv02/editguard/EditGuardChange/experiments/train_editguard/val_images
+  ]
+  train:[
+    lr_G: 0.0001
+    beta1: 0.9
+    beta2: 0.5
+    niter: 250000
+    warmup_iter: -1
+    lr_scheme: MultiStepLR
+    lr_steps: [30000, 60000, 90000, 150000, 180000, 210000]
+    lr_gamma: 0.5
+    pixel_criterion_forw: l2
+    pixel_criterion_back: l1
+    manual_seed: 10
+    val_freq: 100.0
+    lambda_fit_forw: 100
+    lambda_rec_back: 1
+    lambda_center: 0
+    weight_decay_G: 1e-12
+    gradient_clipping: 10
+  ]
+  logger:[
+    print_freq: 100
+    save_checkpoint_freq: 500.0
+  ]
+  is_train: True
+  dist: True
+

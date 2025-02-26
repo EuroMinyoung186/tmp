@@ -9,22 +9,31 @@ gpu_ids: [0, 1, 2, 3]
 gop: 1
 num_image: 1
 
-addnoise: False
+addnoise: True
 noisesigma: 10
 
-addjpeg: False
+add_downsampling: True
+downsample_size : 256
+
+add_upsampling: True
+upsample_size : 1024
+
+addjpeg: True
+addSampling: True
 jpegfactor: 90
-addpossion: False
+addpossion: True
 sdinpaint: False
 controlnetinpaint: False
 sdxl: False
 repaint: False
 
+num_noise: 5
+
 hide: True
 bithide: False
-degrade_shuffle: False
+degrade_shuffle: True
 prompt: True
-prompt_len: 3
+prompt_len: 5
 message_length: 64
 
 losstype: mse
@@ -40,15 +49,15 @@ datasets:
     interval_list: [1]
     random_reverse: false
     border_mode: false
-    data_path: /userhome/train2017
-    txt_path: /userhome/train2017.txt
+    data_path: /home/aikusrv02/editguard/EditGuard/dataset/train2017
+    txt_path: /home/aikusrv02/editguard/EditGuardChange/dataset/train2017.txt
     dataroot_LQ: ~/vimeo90k/vimeo90k_train_LR7frames.lmdb
     cache_keys: Vimeo90K_train_keys.pkl
     num_image: 1
 
-    N_frames: 7
+    N_frames: 1
     use_shuffle: true
-    n_workers: 24 
+    n_workers: 8
     batch_size: 4
     GT_size: 400
     LQ_size: 36
@@ -60,8 +69,8 @@ datasets:
     num_image: 1
     name: CoCo
     mode: test
-    data_path: ../dataset/valAGE-Set
-    txt_path: ../dataset/sep_vallist.txt
+    data_path: /home/aikusrv02/editguard/EditGuardChange/dataset/valAGE-Set
+    txt_path: /home/aikusrv02/editguard/EditGuardChange/dataset/sep_vallist.txt
 
     N_frames: 1
     padding: 'new_info'
@@ -85,7 +94,7 @@ network_G:
 
 path:
   pretrain_model_G: 
-  models: ckp/base
+  models: ckt/base
   strict_load: False 
   resume_state: ~
 

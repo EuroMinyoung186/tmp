@@ -72,7 +72,7 @@ def hiding(image_input, bit_input, model):
     message = message - 0.5
     val_data = load_image(image_input, message)
     model.feed_data(val_data)
-    container = model.image_hiding()
+    container = model.image_hiding(message)
 
     from PIL import Image
     image = Image.fromarray(container)
@@ -89,7 +89,7 @@ def ImageEdit(img, prompt, model_index):
     return received_image, received_image, received_image
 
 
-def imgae_model_select(ckp_index=0):
+def image_model_select(ckp_index=0):
     # options
     opt = option.parse("options/test_editguard.yml", is_train=True)
     # distributed training settings
@@ -172,14 +172,13 @@ def revealing(image_edited, input_bit, model_list, model):
 def calculate_similarity_percentage(str1, str2):
 
     if len(str1) == 0:
-        return "原始版权水印未知"
+        return "Original watermark is unknown"
     elif len(str1) != len(str2):
-        return "输入输出水印长度不同"
+        return "Input and output watermark lengths do not match"
     total_length = len(str1)
     same_count = sum(1 for x, y in zip(str1, str2) if x == y)
     similarity_percentage = (same_count / total_length) * 100
     return f"{similarity_percentage}%"
-
 
 
 # Description
@@ -198,80 +197,144 @@ with gr.Blocks(css=css, title="EditGuard") as demo:
     sam_mask = gr.State(value=None)
 
     with gr.Tabs():
-        with gr.TabItem('多功能取证水印'):
+        with gr.TabItem('Multifunctional Forensic Watermarking'):
 
             DESCRIPTION = """
-            ## 使用方法：
-            - 上传图像和版权水印（64位比特序列），点击"嵌入水印"按钮，生成带水印的图像。
-            - 涂抹要编辑的区域，并使用Inpainting算法编辑图像。
-            - 点击"提取"按钮检测篡改区域并输出版权水印。"""
+            ## Instructions:
+            - Upload an image and copyright watermark (64-bit bit sequence), then click the "Embed Watermark" button to generate a watermarked image.
+            - Mark the area to edit and use an inpainting algorithm to edit the image.
+            - Click the "Extract" button to detect tampered areas and output the extracted watermark.
+            """
             
             gr.Markdown(DESCRIPTION)
             save_inpainted_image = gr.State(value=None)
             with gr.Column():
                 with gr.Row():
-                    model_list = gr.Dropdown(label="选择模型", choices=["模型1"], type = 'index')
-                    clear_button = gr.Button("清除全部")
-                with gr.Box():
-                    gr.Markdown("# 1. 嵌入水印")
-                    with gr.Row():
-                        with gr.Column():
-                            image_input = gr.Image(source='upload', label="原始图片", interactive=True, type="numpy", value=default_example[0])
-                            with gr.Row():
-                                bit_input = gr.Textbox(label="输入版权水印（64位比特序列）", placeholder="在这里输入...")
-                                rand_bit = gr.Button("🎲 随机生成版权水印")
-                            hiding_button = gr.Button("嵌入水印")
-                        with gr.Column():
-                            image_watermark = gr.Image(source="upload", label="带有水印的图片", interactive=True, type="numpy")
+                    model_list = gr.Dropdown(label="Select Model", choices=["Video", "Audio"], type='index')
+                    clear_button = gr.Button("Clear All")
 
-
-                with gr.Box():
-                    gr.Markdown("# 2. 篡改图片")
-                    with gr.Row():
-                        with gr.Column():
-                            image_edit = gr.Image(source='upload',tool="sketch", label="选取篡改区域", interactive=True, type="numpy")
-                            inpainting_model_list = gr.Dropdown(label="选择篡改模型", choices=["模型1：SD_inpainting"], type = 'index')
-                            text_prompt = gr.Textbox(label="篡改提示词")
-                            inpainting_button = gr.Button("篡改图片")
-                        with gr.Column():
-                            image_edited = gr.Image(source="upload", label="篡改结果", interactive=True, type="numpy")
                 
+                with gr.Box(visible=True) as video_ui:
+                    with gr.Box():
+                        gr.Markdown("# 1. Embed Watermark")
 
-                with gr.Box():
-                    gr.Markdown("# 3. 提取水印&篡改区域")
-                    with gr.Row():
-                        with gr.Column():
-                            image_edited_1 = gr.Image(source="upload", label="待提取图片", interactive=True, type="numpy")
-                            
-                            revealing_button = gr.Button("提取")
-                        with gr.Column():
-                            edit_mask = gr.Image(source='upload', label="编辑区域蒙版预测", interactive=True, type="numpy")
-                            bit_output = gr.Textbox(label="版权水印预测")
-                            acc_output = gr.Textbox(label="水印预测准确率")
-                
-                gr.Examples(
-                            examples=examples,
-                            inputs=[image_input],
-                        )
+                        with gr.Row():
+                            with gr.Column():
+                                image_input = gr.Image(source='upload', label="Original Image", interactive=True, type="numpy", value=default_example[0])
+                                with gr.Row():
+                                    bit_input = gr.Textbox(label="Enter Copyright Watermark (64-bit Sequence)", placeholder="Enter here...")
+                                    rand_bit = gr.Button("🎲 Generate Random Watermark")
+                                hiding_button = gr.Button("Embed Watermark")
+                            with gr.Column():
+                                image_watermark = gr.Image(source="upload", label="Watermarked Image", interactive=True, type="numpy")
 
 
-                model_list.change(
-                    imgae_model_select, inputs = [model_list], outputs=[model]
+
+                    with gr.Box():
+                        gr.Markdown("# 2. Modify Image")
+                        with gr.Row():
+                            with gr.Column():
+                                image_edit = gr.Image(source='upload', tool="sketch", label="Select Area for Modification", interactive=True, type="numpy")
+                                inpainting_model_list = gr.Dropdown(label="Select Inpainting Model", choices=["Model 1: SD_inpainting"], type='index')
+                                text_prompt = gr.Textbox(label="Modification Prompt")
+                                inpainting_button = gr.Button("Modify Image")
+                            with gr.Column():
+                                image_edited = gr.Image(source="upload", label="Modified Image", interactive=True, type="numpy")
+
+                    with gr.Box():
+                        gr.Markdown("# 3. Extract Watermark & Detect Modified Area")
+                        with gr.Row():
+                            with gr.Column():
+                                image_edited_1 = gr.Image(source="upload", label="Image for Extraction", interactive=True, type="numpy")
+                                revealing_button = gr.Button("Extract")
+                            with gr.Column():
+                                edit_mask = gr.Image(source='upload', label="Predicted Modification Mask", interactive=True, type="numpy")
+                                bit_output = gr.Textbox(label="Extracted Watermark")
+                                acc_output = gr.Textbox(label="Watermark Extraction Accuracy")
+
+                    gr.Examples(
+                        examples=examples,
+                        inputs=[image_input],
                     )
-                hiding_button.click(
-                    hiding, inputs=[image_input, bit_input, model], outputs=[image_watermark, image_edit]
+
+                    model_list.change(
+                        image_model_select, inputs=[model_list], outputs=[model]
                     )
-                rand_bit.click(
-                    rand, inputs=[], outputs=[bit_input]
+                    hiding_button.click(
+                        hiding, inputs=[image_input, bit_input, model], outputs=[image_watermark, image_edit]
+                    )
+                    rand_bit.click(
+                        rand, inputs=[], outputs=[bit_input]
                     )
 
-
-                inpainting_button.click(
-                    ImageEdit, inputs = [image_edit, text_prompt, inpainting_model_list], outputs=[image_edited, image_edited_1, save_inpainted_image]
+                    inpainting_button.click(
+                        ImageEdit, inputs=[image_edit, text_prompt, inpainting_model_list], outputs=[image_edited, image_edited_1, save_inpainted_image]
                     )
 
-                revealing_button.click(
-                    revealing, inputs=[image_edited_1, bit_input, model_list, model], outputs=[edit_mask, bit_output, acc_output]
+                    revealing_button.click(
+                        revealing, inputs=[image_edited_1, bit_input, model_list, model], outputs=[edit_mask, bit_output, acc_output]
                     )
+
+                with gr.Box(visible=False) as audio_ui:
+                    with gr.Box():
+                        gr.Markdown("# 1. Embed Audio Watermark")
+
+                        with gr.Row():
+                            with gr.Column():
+                                image_input = gr.Image(source='upload', label="Original Image", interactive=True, type="numpy", value=default_example[0])
+                                with gr.Row():
+                                    bit_input = gr.Textbox(label="Enter Copyright Watermark (64-bit Sequence)", placeholder="Enter here...")
+                                    rand_bit = gr.Button("🎲 Generate Random Watermark")
+                                hiding_button = gr.Button("Embed Watermark")
+                            with gr.Column():
+                                image_watermark = gr.Image(source="upload", label="Watermarked Image", interactive=True, type="numpy")
+
+
+
+                    with gr.Box():
+                        gr.Markdown("# 2. Modify Image")
+                        with gr.Row():
+                            with gr.Column():
+                                image_edit = gr.Image(source='upload', tool="sketch", label="Select Area for Modification", interactive=True, type="numpy")
+                                inpainting_model_list = gr.Dropdown(label="Select Inpainting Model", choices=["Model 1: SD_inpainting"], type='index')
+                                text_prompt = gr.Textbox(label="Modification Prompt")
+                                inpainting_button = gr.Button("Modify Image")
+                            with gr.Column():
+                                image_edited = gr.Image(source="upload", label="Modified Image", interactive=True, type="numpy")
+
+                    with gr.Box():
+                        gr.Markdown("# 3. Extract Watermark & Detect Modified Area")
+                        with gr.Row():
+                            with gr.Column():
+                                image_edited_1 = gr.Image(source="upload", label="Image for Extraction", interactive=True, type="numpy")
+                                revealing_button = gr.Button("Extract")
+                            with gr.Column():
+                                edit_mask = gr.Image(source='upload', label="Predicted Modification Mask", interactive=True, type="numpy")
+                                bit_output = gr.Textbox(label="Extracted Watermark")
+                                acc_output = gr.Textbox(label="Watermark Extraction Accuracy")
+
+                    gr.Examples(
+                        examples=examples,
+                        inputs=[image_input],
+                    )
+
+                    model_list.change(
+                        image_model_select, inputs=[model_list], outputs=[model]
+                    )
+                    hiding_button.click(
+                        hiding, inputs=[image_input, bit_input, model], outputs=[image_watermark, image_edit]
+                    )
+                    rand_bit.click(
+                        rand, inputs=[], outputs=[bit_input]
+                    )
+
+                    inpainting_button.click(
+                        ImageEdit, inputs=[image_edit, text_prompt, inpainting_model_list], outputs=[image_edited, image_edited_1, save_inpainted_image]
+                    )
+
+                    revealing_button.click(
+                        revealing, inputs=[image_edited_1, bit_input, model_list, model], outputs=[edit_mask, bit_output, acc_output]
+                    )
+
 
 demo.launch(server_name="0.0.0.0", server_port=2002, share=True, favicon_path='../logo.png')

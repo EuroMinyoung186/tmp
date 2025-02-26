@@ -53,10 +53,10 @@ def get_min_avg_and_indices(nums):
 def main():
     # options
     parser = argparse.ArgumentParser()
-    parser.add_argument('-opt', type=str, help='Path to option YMAL file.')
+    parser.add_argument('-opt', type=str, help='Path to option YMAL file.', default = '/home/aikusrv02/editguard/EditGuardChange/code/options/test_editguard.yml')
     parser.add_argument('--launcher', choices=['none', 'pytorch'], default='none',
                         help='job launcher')
-    parser.add_argument('--ckpt', type=str, default='/userhome/NewIBSN/EditGuard_open/checkpoints/clean.pth', help='Path to pre-trained model.')
+    parser.add_argument('--ckpt', type=str, default='/home/aikusrv02/editguard/EditGuard/checkpoints/clean.pth', help='Path to pre-trained model.')
     parser.add_argument('--local_rank', type=int, default=0)
     args = parser.parse_args()
     opt = option.parse(args.opt, is_train=True)

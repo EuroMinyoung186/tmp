@@ -85,7 +85,10 @@ def read_img(env, path, size=None):
 #     if img is None:
     # print(path)
 #     print(img.shape)
-    img = img.astype(np.float32) / 255.
+    try:
+        img = img.astype(np.float32) / 255.
+    except:
+        print(path)
     if img.ndim == 2:
         img = np.expand_dims(img, axis=2)
     # some images have 4 channels
